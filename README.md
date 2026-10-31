@@ -1,6 +1,7 @@
 # 🌍 The Human Collective — Community Social Development Events Platform
 
-> **Live Application URL:** [https://the-human-collective.vercel.app](https://the-human-collective.vercel.app) *(Replace with your deployed Vercel domain)*  
+> **Live Application URL:** [https://the-human-collective-client.vercel.app](https://the-human-collective-client.vercel.app)  
+> **Backend Live API URL:** [https://the-human-collective-server.vercel.app](https://the-human-collective-server.vercel.app)  
 > **Server Repository:** [https://github.com/uzzal6090/the-human-collective-server](https://github.com/uzzal6090/the-human-collective-server)  
 > **Client Repository:** [https://github.com/uzzal6090/the-human-collective-client](https://github.com/uzzal6090/the-human-collective-client)
 
