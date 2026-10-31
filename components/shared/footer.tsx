@@ -106,9 +106,9 @@ export default function Footer() {
 
         {/* Bottom Footer */}
         <div className="flex flex-col items-center justify-between gap-4 border-t border-border py-6 text-center sm:flex-row sm:text-left">
-          <p className="text-xs text-muted">
-            © {new Date().getFullYear()} The Human Collective. All rights reserved.
-          </p>
+         <p className="text-xs text-muted">
+  © 2026 The Human Collective. All rights reserved.
+</p>
 
           <p className="text-xs font-medium text-muted">
             Connect · Contribute · Create Change
