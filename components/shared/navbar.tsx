@@ -169,6 +169,12 @@ export default function Navbar() {
                     >
                       Joined Events
                     </Link>
+                    <Link
+                      href="/profile"
+                      className="block rounded-lg px-4 py-2 text-sm text-foreground transition-colors hover:bg-surface-secondary"
+                    >
+                      My Profile
+                    </Link>
                   </div>
 
                   {/* Logout */}
@@ -284,6 +290,14 @@ export default function Navbar() {
                   className="rounded-xl px-4 py-2.5 text-sm text-foreground transition-colors hover:bg-surface-secondary"
                 >
                   Joined Events
+                </Link>
+
+                <Link
+                  href="/profile"
+                  onClick={closeMobileMenu}
+                  className="rounded-xl px-4 py-2.5 text-sm text-foreground transition-colors hover:bg-surface-secondary"
+                >
+                  My Profile
                 </Link>
 
                 <button
