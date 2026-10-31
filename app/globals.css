@@ -1,0 +1,147 @@
+
+@import "tailwindcss";
+
+/* ========================================
+   THE HUMAN COLLECTIVE — DESIGN TOKENS
+======================================== */
+
+:root {
+  color-scheme: light;
+
+  --background: #faf8f2;
+  --foreground: #202b24;
+
+  --surface: #ffffff;
+  --surface-secondary: #f0eee5;
+
+  --primary: #234b37;
+  --primary-hover: #193b2b;
+
+  --accent: #c87552;
+  --accent-hover: #ae5d3d;
+
+  --muted: #777d75;
+  --border: #e5e2d8;
+
+  /* Consistent button colors in both themes */
+  --button-primary: #234b37;
+  --button-primary-hover: #193b2b;
+
+  --button-accent: #ae5d3d;
+  --button-accent-hover: #944b31;
+
+  --font-body: var(--font-geist-sans);
+}
+
+/* ========================================
+   DARK THEME
+======================================== */
+
+.dark {
+  color-scheme: dark;
+
+  --background: #111a15;
+  --foreground: #f4f1e8;
+
+  --surface: #1b2820;
+  --surface-secondary: #243329;
+
+  --primary: #8eb99b;
+  --primary-hover: #a5cbb0;
+
+  --accent: #df9472;
+  --accent-hover: #edaa8b;
+
+  --muted: #a4ada5;
+  --border: #344238;
+
+  /* Keep solid buttons dark for white text contrast */
+  --button-primary: #234b37;
+  --button-primary-hover: #193b2b;
+
+  --button-accent: #ae5d3d;
+  --button-accent-hover: #944b31;
+}
+
+/* ========================================
+   TAILWIND THEME MAPPING
+======================================== */
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-surface: var(--surface);
+  --color-surface-secondary: var(--surface-secondary);
+
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+
+  /* Button color utilities */
+  --color-button-primary: var(--button-primary);
+  --color-button-primary-hover: var(--button-primary-hover);
+
+  --color-button-accent: var(--button-accent);
+  --color-button-accent-hover: var(--button-accent-hover);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* ========================================
+   GLOBAL BASE STYLES
+======================================== */
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    min-height: 100vh;
+    margin: 0;
+
+    background: var(--background);
+    color: var(--foreground);
+
+    font-family: var(--font-body), Arial, Helvetica, sans-serif;
+
+    transition:
+      background-color 200ms ease,
+      color 200ms ease;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  button,
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  ::selection {
+    background: var(--primary);
+    color: #ffffff;
+  }
+}
