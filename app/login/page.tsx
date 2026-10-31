@@ -44,13 +44,19 @@ export default function LoginPage() {
 
   async function handleGoogleLogin() {
     try {
-      await authClient.signIn.social({
+      const res = await authClient.signIn.social({
         provider: "google",
         callbackURL: window.location.origin,
       });
+
+      if (res?.error) {
+        toast.error(
+          "Google OAuth requires GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET configured in Google Cloud & server .env."
+        );
+      }
     } catch {
       toast.error(
-        "Google OAuth requires GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET configured in server .env. Please use Email/Password sign-in."
+        "Google OAuth requires GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET configured in Google Cloud & server .env."
       );
     }
   }
