@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import toast from "react-hot-toast";
@@ -9,7 +9,7 @@ import Footer from "@/components/shared/footer";
 import { useAuth } from "@/src/context/auth-context";
 import { getEventById, joinEventApi, getMyJoinedEventsApi, type EventItem } from "@/src/lib/api";
 
-export default function EventDetailsPage() {
+function EventDetailsContent() {
   const params = useParams();
   const id = params?.id as string;
   const router = useRouter();
@@ -328,5 +328,19 @@ export default function EventDetailsPage() {
 
       <Footer />
     </>
+  );
+}
+
+export default function EventDetailsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-background">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </div>
+      }
+    >
+      <EventDetailsContent />
+    </Suspense>
   );
 }

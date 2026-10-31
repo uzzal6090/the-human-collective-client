@@ -207,7 +207,7 @@ export async function getMyJoinedEventsApi(): Promise<JoinedEventItem[]> {
 }
 
 // 10. Fetch User Profile
-export async function getUserProfileApi(): Promise<{ name: string; email: string; image?: string } | null> {
+export async function getUserProfileApi(): Promise<{ name: string; email: string; image?: string; createdAt?: string } | null> {
   try {
     const res = await fetch(`${API_BASE_URL}/api/user/profile`, {
       credentials: "include",
