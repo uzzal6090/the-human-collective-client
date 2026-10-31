@@ -1,7 +1,9 @@
 export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  process.env.NEXT_PUBLIC_BETTER_AUTH_URL ||
-  "http://localhost:5000";
+  typeof window !== "undefined"
+    ? "" // Same-origin relative path in browser; proxied by next.config.ts rewrites
+    : process.env.NEXT_PUBLIC_API_URL ||
+      process.env.NEXT_PUBLIC_BETTER_AUTH_URL ||
+      "https://the-human-collective-server.vercel.app";
 
 export interface EventItem {
   _id: string;
