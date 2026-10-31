@@ -1,4 +1,3 @@
-
 import Link from "next/link";
 
 const footerLinks = [
@@ -14,21 +13,21 @@ const footerLinks = [
     links: [
       { label: "Create an Event", href: "/create-event" },
       { label: "Join an Event", href: "/upcoming-events" },
+      { label: "Manage My Events", href: "/manage-events" },
     ],
   },
 ];
 
 export default function Footer() {
   return (
-    <footer className="border-t border-border bg-surface">
+    <footer className="border-t border-border bg-surface transition-colors duration-200">
       <div className="mx-auto max-w-7xl px-5 pt-14 sm:px-8 lg:px-12 lg:pt-16">
         {/* Main Footer Content */}
         <div className="grid grid-cols-1 gap-10 pb-12 sm:grid-cols-2 lg:grid-cols-4 lg:gap-12">
-
           {/* Brand Information */}
           <div className="lg:col-span-2">
             <Link href="/" className="inline-flex items-center gap-3">
-              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-button-primary text-xl font-bold text-white">
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-button-primary text-xl font-bold text-white shadow-sm">
                 H
               </span>
 
@@ -47,8 +46,22 @@ export default function Footer() {
               shared experiences, and collective action for a better tomorrow.
             </p>
 
-            {/* Social Links */}
+            {/* Social Links with new X logo (PDF Requirement Page 5 #9) */}
             <div className="mt-6 flex items-center gap-3">
+              {/* Official New X Logo */}
+              <a
+                href="https://x.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="X (formerly Twitter)"
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-border text-foreground transition-all duration-300 hover:border-primary hover:bg-primary hover:text-white"
+              >
+                <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                </svg>
+              </a>
+
+              {/* Facebook */}
               <a
                 href="https://www.facebook.com/"
                 target="_blank"
@@ -59,6 +72,7 @@ export default function Footer() {
                 f
               </a>
 
+              {/* Instagram */}
               <a
                 href="https://www.instagram.com/"
                 target="_blank"
@@ -69,6 +83,7 @@ export default function Footer() {
                 ig
               </a>
 
+              {/* LinkedIn */}
               <a
                 href="https://www.linkedin.com/"
                 target="_blank"
@@ -106,9 +121,9 @@ export default function Footer() {
 
         {/* Bottom Footer */}
         <div className="flex flex-col items-center justify-between gap-4 border-t border-border py-6 text-center sm:flex-row sm:text-left">
-         <p className="text-xs text-muted">
-  © 2026 The Human Collective. All rights reserved.
-</p>
+          <p className="text-xs text-muted">
+            © 2026 The Human Collective. All rights reserved.
+          </p>
 
           <p className="text-xs font-medium text-muted">
             Connect · Contribute · Create Change
