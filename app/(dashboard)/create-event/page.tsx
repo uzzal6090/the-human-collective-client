@@ -1,97 +1,139 @@
-
 "use client";
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
+import { useAuth } from "@/src/context/auth-context";
+import { createEventApi } from "@/src/lib/api";
 
-// Calculate tomorrow's date in the user's local timezone.
-// This function must only run inside useEffect or an event handler.
-function getTomorrowDate() {
+function getTomorrowDate(): string {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
-
   const year = tomorrow.getFullYear();
   const month = String(tomorrow.getMonth() + 1).padStart(2, "0");
   const day = String(tomorrow.getDate()).padStart(2, "0");
-
   return `${year}-${month}-${day}`;
 }
 
 export default function CreateEventPage() {
-  const [minDate] = useState(() => getTomorrowDate());
-  const [message, setMessage] = useState("");
-  const [messageType, setMessageType] = useState<"error" | "info" | "">("");
+  const { user } = useAuth();
+  const router = useRouter();
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  const [minDate] = useState(() => getTomorrowDate());
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Form states
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [eventType, setEventType] = useState("");
+  const [thumbnailUrl, setThumbnailUrl] = useState("");
+  const [location, setLocation] = useState("");
+  const [date, setDate] = useState("");
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    setMessage("");
-    setMessageType("");
-
-    const form = event.currentTarget;
-
-    if (!form.reportValidity()) {
+    if (!title.trim() || !description.trim() || !eventType || !thumbnailUrl.trim() || !location.trim() || !date) {
+      toast.error("Please fill in all required fields.");
       return;
     }
 
-    const formData = new FormData(form);
-    const selectedDate = formData.get("date") as string;
-
-    // Recalculate inside the event handler to validate against the current date.
+    // Validation: Date must be in the future (PDF Page 4)
     const earliestAllowedDate = getTomorrowDate();
-
-    if (!selectedDate || selectedDate < earliestAllowedDate) {
-      setMessage(
-        "Please select a future date. Today's and past dates are not allowed."
-      );
-      setMessageType("error");
+    if (date < earliestAllowedDate) {
+      toast.error("Please select a future date. Today's and past dates are not allowed.");
       return;
     }
 
-    setMessage(
-      "Your form has passed frontend validation. Event creation will be enabled after backend integration."
+    setIsSubmitting(true);
+
+    try {
+      const res = await createEventApi({
+        title: title.trim(),
+        description: description.trim(),
+        eventType,
+        thumbnailUrl: thumbnailUrl.trim(),
+        location: location.trim(),
+        date,
+      });
+
+      if (res.success) {
+        toast.success("Event created successfully! Redirecting to upcoming events...");
+        router.push("/upcoming-events");
+      } else {
+        toast.error(res.message || "Failed to create event. Please check your data.");
+      }
+    } catch {
+      toast.error("An unexpected error occurred. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  // Quick fill helper for testing
+  function handlePrefillSample() {
+    setTitle("Winter Clothes & Blanket Distribution Drive");
+    setDescription(
+      "Join us to distribute warm winter clothes, blankets, and essential winter supplies to underprivileged families and children in the Mirpur 10 area. Volunteers are welcome to help with distribution and packaging."
     );
-    setMessageType("info");
+    setEventType("Donation");
+    setThumbnailUrl(
+      "https://images.unsplash.com/photo-1593113598332-cd288d649433?w=1000&q=80"
+    );
+    setLocation("Mirpur 10 Community Center, Dhaka");
+    setDate(getTomorrowDate());
   }
 
   return (
     <main className="min-h-screen bg-background">
       {/* Page Header */}
-      <section className="border-b border-border bg-surface-secondary px-5 py-14 sm:px-8 lg:px-12">
+      <section className="border-b border-border bg-surface-secondary px-5 py-12 sm:px-8 lg:px-12">
         <div className="mx-auto max-w-4xl">
-          <Link
-            href="/"
-            className="text-sm font-medium text-muted transition hover:text-primary"
-          >
-            ← Back to Home
-          </Link>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <Link
+                href="/upcoming-events"
+                className="text-sm font-medium text-muted transition hover:text-primary"
+              >
+                ← Back to Upcoming Events
+              </Link>
 
-          <span className="mt-8 block text-xs font-bold uppercase tracking-[0.2em] text-accent">
-            Bring People Together
-          </span>
+              <span className="mt-4 block text-xs font-bold uppercase tracking-[0.2em] text-accent">
+                Bring People Together
+              </span>
 
-          <h1 className="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Create a Community Event
-          </h1>
+              <h1 className="mt-2 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+                Create a Community Event
+              </h1>
+            </div>
 
-          <p className="mt-4 max-w-2xl text-sm leading-7 text-muted sm:text-base">
-            Have an idea that can make a difference? Create an event
-            and invite your community to be part of something meaningful.
+            <button
+              type="button"
+              onClick={handlePrefillSample}
+              className="inline-flex items-center gap-2 self-start rounded-xl border border-dashed border-primary/50 bg-primary/5 px-4 py-2 text-xs font-semibold text-primary transition hover:bg-primary/10 sm:self-auto"
+            >
+              <span>⚡</span> Prefill Sample Data
+            </button>
+          </div>
+
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-muted sm:text-base">
+            Have an idea that can make a difference? Create an event and invite your
+            community to be part of something meaningful.
           </p>
         </div>
       </section>
 
       {/* Create Event Form */}
-      <section className="px-5 py-12 sm:px-8 lg:px-12 lg:py-16">
+      <section className="px-5 py-10 sm:px-8 lg:px-12 lg:py-14">
         <div className="mx-auto max-w-4xl">
           <div className="rounded-3xl border border-border bg-surface p-6 shadow-sm sm:p-9 lg:p-10">
             <div className="mb-8">
               <h2 className="text-xl font-bold text-foreground sm:text-2xl">
                 Event Information
               </h2>
-
-              <p className="mt-2 text-sm text-muted">
-                Fill in the details below to prepare your community event.
+              <p className="mt-1 text-sm text-muted">
+                Fill in the details below to publish your community service event.
               </p>
             </div>
 
@@ -104,14 +146,15 @@ export default function CreateEventPage() {
                 >
                   Event Title <span className="text-accent">*</span>
                 </label>
-
                 <input
                   id="title"
                   name="title"
                   type="text"
                   required
                   maxLength={120}
-                  placeholder="Enter your event title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g. Winter Clothes Distribution – Mirpur 10, Dhaka"
                   className="w-full rounded-xl border border-border bg-background px-4 py-3.5 text-sm text-foreground outline-none transition placeholder:text-muted focus:border-primary focus:ring-2 focus:ring-primary/10"
                 />
               </div>
@@ -124,19 +167,20 @@ export default function CreateEventPage() {
                 >
                   Event Description <span className="text-accent">*</span>
                 </label>
-
                 <textarea
                   id="description"
                   name="description"
                   required
                   rows={5}
                   maxLength={2000}
-                  placeholder="Describe your event, its purpose, and what participants can expect..."
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Describe your event, its purpose, what volunteers will do, and what participants should bring..."
                   className="w-full resize-y rounded-xl border border-border bg-background px-4 py-3.5 text-sm leading-7 text-foreground outline-none transition placeholder:text-muted focus:border-primary focus:ring-2 focus:ring-primary/10"
                 />
               </div>
 
-              {/* Event Type */}
+              {/* Event Type Dropdown (PDF Requirement Page 4) */}
               <div>
                 <label
                   htmlFor="eventType"
@@ -144,22 +188,23 @@ export default function CreateEventPage() {
                 >
                   Event Type <span className="text-accent">*</span>
                 </label>
-
                 <select
                   id="eventType"
                   name="eventType"
                   required
-                  defaultValue=""
+                  value={eventType}
+                  onChange={(e) => setEventType(e.target.value)}
                   className="w-full rounded-xl border border-border bg-background px-4 py-3.5 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
                 >
                   <option value="" disabled>
-                    Select an event type
+                    Select an event category
                   </option>
                   <option value="Cleanup">Cleanup</option>
                   <option value="Plantation">Plantation</option>
                   <option value="Donation">Donation</option>
                   <option value="Education">Education</option>
                   <option value="Community Support">Community Support</option>
+                  <option value="Health">Health</option>
                   <option value="Other">Other</option>
                 </select>
               </div>
@@ -172,18 +217,18 @@ export default function CreateEventPage() {
                 >
                   Thumbnail Image URL <span className="text-accent">*</span>
                 </label>
-
                 <input
                   id="thumbnailUrl"
                   name="thumbnailUrl"
                   type="url"
                   required
-                  placeholder="https://example.com/event-image.jpg"
+                  value={thumbnailUrl}
+                  onChange={(e) => setThumbnailUrl(e.target.value)}
+                  placeholder="https://images.unsplash.com/photo-..."
                   className="w-full rounded-xl border border-border bg-background px-4 py-3.5 text-sm text-foreground outline-none transition placeholder:text-muted focus:border-primary focus:ring-2 focus:ring-primary/10"
                 />
-
-                <p className="mt-2 text-xs text-muted">
-                  Provide a publicly accessible image URL for your event.
+                <p className="mt-1 text-xs text-muted">
+                  Provide a direct, publicly accessible image URL for the event cover.
                 </p>
               </div>
 
@@ -196,19 +241,20 @@ export default function CreateEventPage() {
                   >
                     Location <span className="text-accent">*</span>
                   </label>
-
                   <input
                     id="location"
                     name="location"
                     type="text"
                     required
                     maxLength={200}
-                    placeholder="Enter event location"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    placeholder="e.g. Mohammadpur, Dhaka"
                     className="w-full rounded-xl border border-border bg-background px-4 py-3.5 text-sm text-foreground outline-none transition placeholder:text-muted focus:border-primary focus:ring-2 focus:ring-primary/10"
                   />
                 </div>
 
-                {/* Future Date Only */}
+                {/* Event Date (Only Future Dates Allowed) */}
                 <div>
                   <label
                     htmlFor="date"
@@ -216,65 +262,51 @@ export default function CreateEventPage() {
                   >
                     Event Date <span className="text-accent">*</span>
                   </label>
-
                   <input
                     id="date"
                     name="date"
                     type="date"
                     required
-                    min={minDate || undefined}
-                    disabled={!minDate}
-                    className="w-full rounded-xl border border-border bg-background px-4 py-3.5 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10 disabled:cursor-wait disabled:opacity-60"
+                    min={minDate}
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    className="w-full rounded-xl border border-border bg-background px-4 py-3.5 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
                   />
-
-                  <p className="mt-2 text-xs text-muted">
-                    {minDate
-                      ? "Only future dates are allowed."
-                      : "Preparing date selection..."}
+                  <p className="mt-1 text-xs text-muted">
+                    Only future dates are allowed (Earliest: {minDate})
                   </p>
                 </div>
               </div>
 
-              {/* Creator Email */}
-              <div className="rounded-xl border border-border bg-surface-secondary p-4">
-                <p className="text-sm font-semibold text-foreground">
-                  Event Creator
-                </p>
-
-                <p className="mt-2 text-sm leading-6 text-muted">
-                  Your authenticated account email will automatically be
-                  saved with this event after authentication and backend
-                  integration.
-                </p>
-              </div>
-
-              {/* Validation Feedback */}
-              {message && (
-                <div
-                  role="status"
-                  aria-live="polite"
-                  className={`rounded-xl border px-4 py-3 text-sm leading-6 ${
-                    messageType === "error"
-                      ? "border-red-500/20 bg-red-500/10 text-red-600"
-                      : "border-primary/20 bg-primary/10 text-primary"
-                  }`}
-                >
-                  {message}
+              {/* Creator Email Info Badge (PDF Requirement Page 4) */}
+              <div className="rounded-2xl border border-border bg-surface-secondary p-4">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    👤
+                  </span>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted">
+                      Event Organizer Email
+                    </p>
+                    <p className="text-sm font-bold text-foreground">
+                      {user?.email || "Authenticating..."}
+                    </p>
+                  </div>
                 </div>
-              )}
+              </div>
 
               {/* Form Actions */}
               <div className="flex flex-col gap-4 border-t border-border pt-6 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-xs text-muted">
-                  Fields marked with * are required.
+                  Fields marked with <span className="text-accent">*</span> are required.
                 </p>
 
                 <button
                   type="submit"
-                  disabled={!minDate}
+                  disabled={isSubmitting}
                   className="inline-flex items-center justify-center gap-2 rounded-full bg-button-primary px-8 py-3.5 text-sm font-semibold text-white transition-all duration-300 hover:bg-button-primary-hover hover:text-white hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Create Event
+                  {isSubmitting ? "Creating Event..." : "Publish Event"}
                   <span aria-hidden="true">→</span>
                 </button>
               </div>
