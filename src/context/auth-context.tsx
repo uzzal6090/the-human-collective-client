@@ -26,8 +26,43 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const BASE_URL =
+  process.env.NEXT_PUBLIC_BETTER_AUTH_URL ||
+  (process.env.NODE_ENV === "production"
+    ? "https://the-human-collective-client.vercel.app"
+    : "http://localhost:3000");
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { data: sessionData, isPending, refetch } = authClient.useSession();
+
+  // Fetch the JWT from /api/auth/token and persist it to localStorage so api.ts
+  // can send it as Bearer token to Express APIs
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchJwt = async () => {
+      const sessionToken = sessionData?.session?.token;
+      if (!sessionToken || cancelled) return;
+
+      try {
+        const res = await fetch(`${BASE_URL}/api/auth/token`, {
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.token && typeof window !== "undefined") {
+            localStorage.setItem("session_token", data.token);
+          }
+        }
+      } catch {
+        // Ignore JWT fetch errors; session token remains in cookies
+      }
+    };
+
+    fetchJwt();
+    return () => { cancelled = true; };
+  }, [sessionData?.session?.token]);
 
   // Handle OAuth redirect carrying session_token query param for robust cross-domain authentication
   useEffect(() => {
@@ -38,10 +73,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const token = url.searchParams.get("session_token");
 
       if (token) {
-        // 1. Store in localStorage for Authorization: Bearer headers
         localStorage.setItem("session_token", token);
 
-        // 2. Set client-side cookies for first-party persistence
         const isHttps = window.location.protocol === "https:";
         const secureFlag = isHttps ? "; Secure" : "";
         document.cookie = `better-auth.session_token=${token}; Path=/; Max-Age=604800; SameSite=Lax${secureFlag}`;
@@ -49,11 +82,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           document.cookie = `__Secure-better-auth.session_token=${token}; Path=/; Max-Age=604800; SameSite=Lax; Secure`;
         }
 
-        // 3. Clean query parameter from address bar
         url.searchParams.delete("session_token");
         window.history.replaceState({}, document.title, url.pathname + (url.search ? url.search : ""));
 
-        // 4. Immediately trigger session hydration
         refetch();
       }
     } catch (err) {
@@ -61,7 +92,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [refetch]);
 
-  // Directly derive user from sessionData (React 19 compiler automatically optimizes this)
   const user: AuthUser | null = sessionData?.user
     ? {
         id: sessionData.user.id,
