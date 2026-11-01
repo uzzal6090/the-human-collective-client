@@ -5,10 +5,30 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { useAuth } from "@/src/context/auth-context";
+import { authClient } from "@/src/lib/auth-client";
 
 export default function RegisterPage() {
   const { signUpWithEmail } = useAuth();
   const router = useRouter();
+
+  async function handleGoogleLogin() {
+    try {
+      const res = await authClient.signIn.social({
+        provider: "google",
+        callbackURL: window.location.origin,
+      });
+
+      if (res?.error) {
+        toast.error(
+          "Google OAuth requires GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET configured in Google Cloud & server .env."
+        );
+      }
+    } catch {
+      toast.error(
+        "Google OAuth requires GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET configured in Google Cloud & server .env."
+      );
+    }
+  }
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -105,6 +125,46 @@ export default function RegisterPage() {
               Be part of something meaningful. Connect with people and create
               positive change together.
             </p>
+          </div>
+
+          {/* Google Signup */}
+          <button
+            type="button"
+            onClick={handleGoogleLogin}
+            className="flex w-full items-center justify-center gap-3 rounded-xl border border-border bg-surface-secondary px-5 py-3.5 text-sm font-semibold text-foreground transition hover:border-primary/40 hover:bg-surface"
+          >
+            <svg
+              viewBox="0 0 48 48"
+              className="h-5 w-5"
+              aria-hidden="true"
+            >
+              <path
+                fill="#4285F4"
+                d="M43.6 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h11a9.4 9.4 0 0 1-4.1 6.2v5h6.6c3.9-3.6 6.1-8.8 6.1-14.9Z"
+              />
+              <path
+                fill="#34A853"
+                d="M24 44c5.5 0 10.1-1.8 13.5-4.8l-6.6-5c-1.8 1.2-4.1 1.9-6.9 1.9-5.3 0-9.8-3.6-11.4-8.4H5.8v5.2A20 20 0 0 0 24 44Z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M12.6 27.7a12 12 0 0 1 0-7.4v-5.2H5.8a20 20 0 0 0 0 17.8l6.8-5.2Z"
+              />
+              <path
+                fill="#EA4335"
+                d="M24 11.9c3 0 5.7 1 7.8 3.1l5.8-5.8C34.1 5.9 29.5 4 24 4A20 20 0 0 0 5.8 15.1l6.8 5.2c1.6-4.8 6.1-8.4 11.4-8.4Z"
+              />
+            </svg>
+            Continue with Google
+          </button>
+
+          {/* Divider */}
+          <div className="my-7 flex items-center gap-4">
+            <div className="h-px flex-1 bg-border" />
+            <span className="text-xs font-medium text-muted">
+              OR REGISTER WITH EMAIL
+            </span>
+            <div className="h-px flex-1 bg-border" />
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">

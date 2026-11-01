@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, type ReactNode } from "react";
+import React, { createContext, useContext, useEffect, type ReactNode } from "react";
 import { authClient } from "@/src/lib/auth-client";
 
 export interface AuthUser {
@@ -28,6 +28,38 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { data: sessionData, isPending, refetch } = authClient.useSession();
+
+  // Handle OAuth redirect carrying session_token query param for robust cross-domain authentication
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const url = new URL(window.location.href);
+      const token = url.searchParams.get("session_token");
+
+      if (token) {
+        // 1. Store in localStorage for Authorization: Bearer headers
+        localStorage.setItem("session_token", token);
+
+        // 2. Set client-side cookies for first-party persistence
+        const isHttps = window.location.protocol === "https:";
+        const secureFlag = isHttps ? "; Secure" : "";
+        document.cookie = `better-auth.session_token=${token}; Path=/; Max-Age=604800; SameSite=Lax${secureFlag}`;
+        if (isHttps) {
+          document.cookie = `__Secure-better-auth.session_token=${token}; Path=/; Max-Age=604800; SameSite=Lax; Secure`;
+        }
+
+        // 3. Clean query parameter from address bar
+        url.searchParams.delete("session_token");
+        window.history.replaceState({}, document.title, url.pathname + (url.search ? url.search : ""));
+
+        // 4. Immediately trigger session hydration
+        refetch();
+      }
+    } catch (err) {
+      console.warn("Session token sync error:", err);
+    }
+  }, [refetch]);
 
   // Directly derive user from sessionData (React 19 compiler automatically optimizes this)
   const user: AuthUser | null = sessionData?.user
@@ -98,6 +130,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOutUser = async () => {
     try {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("session_token");
+        document.cookie = "better-auth.session_token=; Path=/; Max-Age=0;";
+        document.cookie = "__Secure-better-auth.session_token=; Path=/; Max-Age=0; Secure;";
+      }
       await authClient.signOut();
       await refetch();
     } catch (err) {

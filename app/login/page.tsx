@@ -1,15 +1,18 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { Suspense, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import { useAuth } from "@/src/context/auth-context";
 import { authClient } from "@/src/lib/auth-client";
 
-export default function LoginPage() {
+function LoginForm() {
   const { signInWithEmail } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const rawCallbackUrl = searchParams.get("callbackUrl");
+  const callbackUrl = rawCallbackUrl && rawCallbackUrl.startsWith("/") ? rawCallbackUrl : "/";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -31,7 +34,7 @@ export default function LoginPage() {
 
       if (result.success) {
         toast.success("Welcome back! Signed in successfully.");
-        router.push("/");
+        router.push(callbackUrl);
       } else {
         toast.error(result.error || "Invalid email or password.");
       }
@@ -44,9 +47,10 @@ export default function LoginPage() {
 
   async function handleGoogleLogin() {
     try {
+      const targetUrl = `${window.location.origin}${callbackUrl}`;
       const res = await authClient.signIn.social({
         provider: "google",
-        callbackURL: window.location.origin,
+        callbackURL: targetUrl,
       });
 
       if (res?.error) {
@@ -247,5 +251,19 @@ export default function LoginPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center bg-background px-4">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </main>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }

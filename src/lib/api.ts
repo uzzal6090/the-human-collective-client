@@ -1,9 +1,9 @@
 export const API_BASE_URL =
-  typeof window !== "undefined"
-    ? "" // Same-origin relative path in browser; proxied by next.config.ts rewrites
-    : process.env.NEXT_PUBLIC_API_URL ||
-      process.env.NEXT_PUBLIC_BETTER_AUTH_URL ||
-      "https://the-human-collective-server.vercel.app";
+  process.env.NEXT_PUBLIC_API_URL ||
+  process.env.NEXT_PUBLIC_BETTER_AUTH_URL ||
+  (process.env.NODE_ENV === "production"
+    ? "https://the-human-collective-server.vercel.app"
+    : "http://localhost:5000");
 
 export interface EventItem {
   _id: string;
@@ -92,14 +92,28 @@ export async function getEventById(id: string): Promise<EventItem | null> {
   }
 }
 
+// Helper to get authentication headers (combining Bearer token if present with cookies)
+export function getAuthHeaders(custom?: Record<string, string>): Record<string, string> {
+  const headers: Record<string, string> = {
+    ...custom,
+  };
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("session_token");
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+  }
+  return headers;
+}
+
 // 4. Create Event (Protected)
 export async function createEventApi(eventData: CreateEventInput): Promise<{ success: boolean; data?: EventItem; message?: string }> {
   try {
     const res = await fetch(`${API_BASE_URL}/api/events`, {
       method: "POST",
-      headers: {
+      headers: getAuthHeaders({
         "Content-Type": "application/json",
-      },
+      }),
       credentials: "include",
       body: JSON.stringify(eventData),
     });
@@ -120,9 +134,9 @@ export async function updateEventApi(id: string, eventData: CreateEventInput): P
   try {
     const res = await fetch(`${API_BASE_URL}/api/events/${id}`, {
       method: "PUT",
-      headers: {
+      headers: getAuthHeaders({
         "Content-Type": "application/json",
-      },
+      }),
       credentials: "include",
       body: JSON.stringify(eventData),
     });
@@ -143,6 +157,7 @@ export async function deleteEventApi(id: string): Promise<{ success: boolean; me
   try {
     const res = await fetch(`${API_BASE_URL}/api/events/${id}`, {
       method: "DELETE",
+      headers: getAuthHeaders(),
       credentials: "include",
     });
 
@@ -162,6 +177,7 @@ export async function joinEventApi(id: string): Promise<{ success: boolean; mess
   try {
     const res = await fetch(`${API_BASE_URL}/api/events/${id}/join`, {
       method: "POST",
+      headers: getAuthHeaders(),
       credentials: "include",
     });
 
@@ -180,6 +196,7 @@ export async function joinEventApi(id: string): Promise<{ success: boolean; mess
 export async function getMyEventsApi(): Promise<EventItem[]> {
   try {
     const res = await fetch(`${API_BASE_URL}/api/events/user/my-events`, {
+      headers: getAuthHeaders(),
       credentials: "include",
       cache: "no-store",
     });
@@ -196,6 +213,7 @@ export async function getMyEventsApi(): Promise<EventItem[]> {
 export async function getMyJoinedEventsApi(): Promise<JoinedEventItem[]> {
   try {
     const res = await fetch(`${API_BASE_URL}/api/events/user/joined-events`, {
+      headers: getAuthHeaders(),
       credentials: "include",
       cache: "no-store",
     });
@@ -212,6 +230,7 @@ export async function getMyJoinedEventsApi(): Promise<JoinedEventItem[]> {
 export async function getUserProfileApi(): Promise<{ name: string; email: string; image?: string; createdAt?: string } | null> {
   try {
     const res = await fetch(`${API_BASE_URL}/api/user/profile`, {
+      headers: getAuthHeaders(),
       credentials: "include",
       cache: "no-store",
     });
@@ -229,7 +248,7 @@ export async function updateUserProfileApi(payload: { name: string; image?: stri
   try {
     const res = await fetch(`${API_BASE_URL}/api/user/profile`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders({ "Content-Type": "application/json" }),
       credentials: "include",
       body: JSON.stringify(payload),
     });
