@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { useState } from "react";
 
 export type EventPreview = {
   id?: string;
@@ -18,6 +19,7 @@ type EventCardProps = {
 export default function EventCard({ event }: EventCardProps) {
   const eventId = event._id || event.id || "";
   const eventDate = new Date(event.date);
+  const [imageLoadError, setImageLoadError] = useState(false);
 
   const formattedDate = Number.isNaN(eventDate.getTime())
     ? event.date || "Date unavailable"
@@ -34,14 +36,18 @@ export default function EventCard({ event }: EventCardProps) {
         <div
           role="img"
           aria-label={`${event.title} event thumbnail`}
-          className="relative aspect-[16/10] w-full overflow-hidden bg-surface-secondary bg-cover bg-center"
-          style={
-            event.thumbnailUrl
-              ? { backgroundImage: `url("${event.thumbnailUrl}")` }
-              : undefined
-          }
+          className="relative aspect-[16/10] w-full overflow-hidden bg-surface-secondary"
         >
-          {!event.thumbnailUrl && (
+          {event.thumbnailUrl ? (
+            <img
+              src={event.thumbnailUrl}
+              alt={`${event.title} event thumbnail`}
+              className="h-full w-full object-cover"
+              onError={() => setImageLoadError(true)}
+            />
+          ) : null}
+
+          {!event.thumbnailUrl || imageLoadError && (
             <div className="flex h-full items-center justify-center text-muted">
               <span className="text-sm">🌱 Event image</span>
             </div>

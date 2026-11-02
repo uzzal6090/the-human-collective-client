@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
@@ -22,6 +22,47 @@ export default function CreateEventPage() {
 
   const [minDate] = useState(() => getTomorrowDate());
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const [isImageValid, setIsImageValid] = useState(false);
+
+  const SEARCH_ENGINE_PATTERNS = [
+    /bing\.com\/images\/search/i,
+    /google\.com\/search/i,
+    /duckduckgo\.com/i,
+  ];
+
+  function isSearchEngineUrl(url: string): boolean {
+    return SEARCH_ENGINE_PATTERNS.some((pattern) => pattern.test(url));
+  }
+
+  function validateImageUrl(url: string): { valid: boolean; error?: string } {
+    const trimmed = url.trim();
+    if (!trimmed) {
+      return { valid: false, error: "Image URL is required." };
+    }
+
+    let parsed: URL;
+    try {
+      parsed = new URL(trimmed);
+    } catch {
+      return { valid: false, error: "Please enter a valid URL." };
+    }
+
+    if (!parsed.protocol.match(/^https?:$/i)) {
+      return { valid: false, error: "Image URL must use http or https." };
+    }
+
+    if (isSearchEngineUrl(trimmed)) {
+      return {
+        valid: false,
+        error: "Please paste a direct image URL, not a search results page.",
+      };
+    }
+
+    return { valid: true };
+  }
+
   const [isFetchingJwt, setIsFetchingJwt] = useState(false);
 
   // Form states
@@ -31,6 +72,37 @@ export default function CreateEventPage() {
   const [thumbnailUrl, setThumbnailUrl] = useState("");
   const [location, setLocation] = useState("");
   const [date, setDate] = useState("");
+
+  useEffect(() => {
+    const trimmed = thumbnailUrl.trim();
+    const validation = validateImageUrl(trimmed);
+
+    if (!validation.valid) {
+      setPreviewImage(null);
+      setImageError(validation.error ?? null);
+      setIsImageValid(false);
+      return;
+    }
+
+    setImageError(null);
+    setIsImageValid(true);
+
+    const img = new Image();
+    img.onload = () => {
+      setPreviewImage(trimmed);
+    };
+    img.onerror = () => {
+      setPreviewImage(null);
+      setImageError("Unable to load image from this URL. Please verify it is a direct image link.");
+      setIsImageValid(false);
+    };
+    img.src = trimmed;
+
+    return () => {
+      img.onload = null;
+      img.onerror = null;
+    };
+  }, [thumbnailUrl]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -44,6 +116,11 @@ export default function CreateEventPage() {
     const earliestAllowedDate = getTomorrowDate();
     if (date < earliestAllowedDate) {
       toast.error("Please select a future date. Today's and past dates are not allowed.");
+      return;
+    }
+
+    if (!isImageValid || !previewImage) {
+      toast.error(imageError || "Please enter a valid direct image URL.");
       return;
     }
 
@@ -249,6 +326,21 @@ export default function CreateEventPage() {
                 <p className="mt-1 text-xs text-muted">
                   Provide a direct, publicly accessible image URL for the event cover.
                 </p>
+
+                {/* Image Preview */}
+                {imageError ? (
+                  <div className="mt-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-700">
+                    {imageError}
+                  </div>
+                ) : previewImage ? (
+                  <div className="mt-3 rounded-xl border border-border bg-surface overflow-hidden aspect-video">
+                    <img
+                      src={previewImage}
+                      alt="Event thumbnail preview"
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                ) : null}
               </div>
 
               {/* Location and Event Date */}

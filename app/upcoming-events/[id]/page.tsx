@@ -19,6 +19,7 @@ function EventDetailsContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [isJoining, setIsJoining] = useState(false);
   const [hasJoined, setHasJoined] = useState(false);
+  const [imageLoadError, setImageLoadError] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -155,8 +156,15 @@ function EventDetailsContent() {
                       src={event.thumbnailUrl}
                       alt={event.title}
                       className="h-full w-full object-cover"
+                      onError={() => setImageLoadError(true)}
                     />
                   ) : (
+                    <div className="flex h-full items-center justify-center text-4xl">
+                      🌱
+                    </div>
+                  )}
+
+                  {event.thumbnailUrl && imageLoadError && (
                     <div className="flex h-full items-center justify-center text-4xl">
                       🌱
                     </div>
