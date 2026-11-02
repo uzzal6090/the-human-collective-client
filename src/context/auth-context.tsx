@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, type ReactNode } from "react";
+import React, { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { authClient } from "@/src/lib/auth-client";
 
 export interface AuthUser {
@@ -13,6 +13,9 @@ export interface AuthUser {
 interface AuthContextType {
   user: AuthUser | null;
   isLoading: boolean;
+  isJwtReady: boolean;
+  jwtError: string | null;
+  sessionToken: string | null;
   signInWithEmail: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signUpWithEmail: (
     name: string,
@@ -22,6 +25,7 @@ interface AuthContextType {
   ) => Promise<{ success: boolean; error?: string }>;
   signOutUser: () => Promise<void>;
   refreshSession: () => Promise<void>;
+  refetchJwt: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,33 +39,80 @@ const BASE_URL =
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { data: sessionData, isPending, refetch } = authClient.useSession();
 
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const [isJwtReady, setIsJwtReady] = useState(false);
+  const [jwtError, setJwtError] = useState<string | null>(null);
+
+  // Initialize JWT state from localStorage on mount
+  useEffect(() => {
+    const storedToken = typeof window !== "undefined" ? localStorage.getItem("session_token") : null;
+    setSessionToken(storedToken);
+    setIsJwtReady(!!storedToken);
+  }, []);
+
+  // Sync localStorage changes across tabs (e.g. sign-out in another tab)
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "session_token") {
+        setSessionToken(e.newValue);
+        setIsJwtReady(!!e.newValue);
+      }
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("storage", handleStorage);
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("storage", handleStorage);
+      }
+    };
+  }, []);
+
   // Fetch the JWT from /api/auth/token and persist it to localStorage so api.ts
   // can send it as Bearer token to Express APIs
+  const fetchJwt = async () => {
+    const sessionTokenValue = sessionData?.session?.token;
+    if (!sessionTokenValue) {
+      setJwtError("No active session token available");
+      setIsJwtReady(false);
+      return;
+    }
+
+    setJwtError(null);
+    setIsJwtReady(false);
+
+    try {
+      const res = await fetch(`${BASE_URL}/api/auth/token`, {
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) {
+        throw new Error(`Failed to retrieve authentication token (${res.status})`);
+      }
+      const data = await res.json();
+      if (data.token && typeof window !== "undefined") {
+        localStorage.setItem("session_token", data.token);
+        setSessionToken(data.token);
+        setIsJwtReady(true);
+      } else {
+        throw new Error("No token returned from authentication endpoint");
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to retrieve authentication token";
+      setJwtError(msg);
+      setIsJwtReady(false);
+    }
+  };
+
   useEffect(() => {
     let cancelled = false;
 
-    const fetchJwt = async () => {
-      const sessionToken = sessionData?.session?.token;
-      if (!sessionToken || cancelled) return;
-
-      try {
-        const res = await fetch(`${BASE_URL}/api/auth/token`, {
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.token && typeof window !== "undefined") {
-            localStorage.setItem("session_token", data.token);
-          }
-        }
-      } catch {
-        // Ignore JWT fetch errors; session token remains in cookies
-      }
+    if (!cancelled) {
+      void fetchJwt();
+    }
+    return () => {
+      cancelled = true;
     };
-
-    fetchJwt();
-    return () => { cancelled = true; };
   }, [sessionData?.session?.token]);
 
   // Handle OAuth redirect carrying session_token query param for robust cross-domain authentication
@@ -162,6 +213,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       if (typeof window !== "undefined") {
         localStorage.removeItem("session_token");
+        setSessionToken(null);
+        setIsJwtReady(false);
+        setJwtError(null);
         document.cookie = "better-auth.session_token=; Path=/; Max-Age=0;";
         document.cookie = "__Secure-better-auth.session_token=; Path=/; Max-Age=0; Secure;";
       }
@@ -181,10 +235,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         isLoading: isPending,
+        isJwtReady,
+        jwtError,
+        sessionToken,
         signInWithEmail,
         signUpWithEmail,
         signOutUser,
         refreshSession,
+        refetchJwt: fetchJwt,
       }}
     >
       {children}

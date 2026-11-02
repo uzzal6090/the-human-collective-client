@@ -17,11 +17,12 @@ function getTomorrowDate(): string {
 }
 
 export default function CreateEventPage() {
-  const { user } = useAuth();
+  const { user, isJwtReady, jwtError, refetchJwt, sessionToken } = useAuth();
   const router = useRouter();
 
   const [minDate] = useState(() => getTomorrowDate());
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isFetchingJwt, setIsFetchingJwt] = useState(false);
 
   // Form states
   const [title, setTitle] = useState("");
@@ -47,6 +48,24 @@ export default function CreateEventPage() {
     }
 
     setIsSubmitting(true);
+
+    // Ensure a valid JWT is available before calling the protected API
+    if (!isJwtReady && !sessionToken) {
+      setIsFetchingJwt(true);
+      try {
+        await refetchJwt();
+      } catch {
+        // refetchJwt handles its own error state via jwtError
+      } finally {
+        setIsFetchingJwt(false);
+      }
+    }
+
+    if (!isJwtReady && !sessionToken) {
+      setIsSubmitting(false);
+      toast.error(jwtError || "Authentication token is not available. Please sign in again.");
+      return;
+    }
 
     try {
       const res = await createEventApi({
@@ -303,10 +322,10 @@ export default function CreateEventPage() {
 
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || isFetchingJwt || !isJwtReady && !sessionToken}
                   className="inline-flex items-center justify-center gap-2 rounded-full bg-button-primary px-8 py-3.5 text-sm font-semibold text-white transition-all duration-300 hover:bg-button-primary-hover hover:text-white hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {isSubmitting ? "Creating Event..." : "Publish Event"}
+                  {isFetchingJwt ? "Preparing authentication..." : isSubmitting ? "Creating Event..." : "Publish Event"}
                   <span aria-hidden="true">→</span>
                 </button>
               </div>
