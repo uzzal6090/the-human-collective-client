@@ -61,7 +61,7 @@ npm install
 ### 2. Environment Configuration
 Create a `.env.local` file in the root directory:
 ```env
-NEXT_PUBLIC_BETTER_AUTH_URL=http://localhost:5000
+NEXT_PUBLIC_BETTER_AUTH_URL=http://localhost:3000
 NEXT_PUBLIC_API_URL=http://localhost:5000
 ```
 
