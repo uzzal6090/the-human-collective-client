@@ -1,38 +1,56 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import Navbar from "@/components/shared/navbar";
 import Footer from "@/components/shared/footer";
 import EventCard from "@/components/events/event-card";
-import { getAllEvents, type EventItem } from "@/src/lib/api";
+import { getAllEvents, type EventItem, type FetchEventsError } from "@/src/lib/api";
 
 export default function UpcomingEventsPage() {
   const [events, setEvents] = useState<EventItem[]>([]);
+  const [error, setError] = useState<FetchEventsError | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [, startTransition] = useTransition();
 
+  const fetchEvents = useCallback(async () => {
+    try {
+      const result = await getAllEvents(searchTerm, selectedCategory);
+      if (result.error) {
+        setError(result.error);
+        setEvents([]);
+      } else {
+        setEvents(result.data ?? []);
+        setError(null);
+      }
+    } catch (err) {
+      console.error("Failed to load events:", err);
+      setError({
+        type: "network",
+        message: "Unexpected error loading events.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [searchTerm, selectedCategory]);
+
+  const handleRetry = () => {
+    setError(null);
+    setIsLoading(true);
+    fetchEvents();
+  };
+
   useEffect(() => {
     let isMounted = true;
 
-    getAllEvents(searchTerm, selectedCategory)
-      .then((data) => {
-        if (isMounted) {
-          setEvents(data);
-          setIsLoading(false);
-        }
-      })
-      .catch((err) => {
-        console.error("Failed to load events:", err);
-        if (isMounted) setIsLoading(false);
-      });
+    fetchEvents();
 
     return () => {
       isMounted = false;
     };
-  }, [searchTerm, selectedCategory]);
+  }, [fetchEvents]);
 
   const handleSearchChange = (value: string) => {
     startTransition(() => {
@@ -144,6 +162,39 @@ export default function UpcomingEventsPage() {
                       <div className="mt-4 h-10 w-full rounded-full bg-surface-secondary" />
                     </div>
                   ))}
+                </div>
+              ) : error ? (
+                /* Error State */
+                <div className="rounded-3xl border border-dashed border-border bg-surface px-6 py-16 text-center sm:px-12 sm:py-20">
+                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-red-500/10 text-3xl text-red-500">
+                    ⚠️
+                  </div>
+
+                  <h3 className="mt-6 text-xl font-bold text-foreground sm:text-2xl">
+                    Failed to Load Events
+                  </h3>
+
+                  <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-muted">
+                    {error.message}
+                  </p>
+
+                  <div className="mt-7 flex flex-wrap items-center justify-center gap-4">
+                    <button
+                      type="button"
+                      onClick={handleRetry}
+                      className="rounded-full border border-border bg-surface px-6 py-3 text-sm font-semibold text-foreground transition hover:bg-surface-secondary"
+                    >
+                      Retry
+                    </button>
+
+                    <Link
+                      href="/create-event"
+                      className="inline-flex items-center justify-center gap-2 rounded-full bg-button-primary px-7 py-3 text-sm font-semibold text-white transition hover:bg-button-primary-hover hover:text-white hover:shadow-md"
+                    >
+                      Create an Event
+                      <span aria-hidden="true">→</span>
+                    </Link>
+                  </div>
                 </div>
               ) : events.length > 0 ? (
                 /* Dynamic Event Cards */

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import EventCard from "@/components/events/event-card";
-import { getRecentEvents, type EventItem } from "@/src/lib/api";
+import { getRecentEvents, type EventItem, type FetchEventsError } from "@/src/lib/api";
 
 type LatestEventsSectionProps = {
   initialEvents?: EventItem[];
@@ -13,23 +13,41 @@ export default function LatestEventsSection({
   initialEvents = [],
 }: LatestEventsSectionProps) {
   const [events, setEvents] = useState<EventItem[]>(initialEvents);
+  const [error, setError] = useState<FetchEventsError | null>(null);
   const [isLoading, setIsLoading] = useState(initialEvents.length === 0);
+
+  const fetchRecentEvents = async () => {
+    try {
+      const result = await getRecentEvents();
+      if (result.error) {
+        setError(result.error);
+        setEvents([]);
+      } else {
+        setEvents(result.data ?? []);
+        setError(null);
+      }
+    } catch (err) {
+      console.error("Error loading recent events:", err);
+      setError({
+        type: "network",
+        message: "Unexpected error loading recent events.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRetry = () => {
+    setError(null);
+    setIsLoading(true);
+    fetchRecentEvents();
+  };
 
   useEffect(() => {
     let isMounted = true;
 
     // Fetch 6 recent upcoming events directly from MongoDB (PDF Requirement Page 3)
-    getRecentEvents()
-      .then((data) => {
-        if (isMounted) {
-          setEvents(data);
-          setIsLoading(false);
-        }
-      })
-      .catch((err) => {
-        console.error("Error loading recent events:", err);
-        if (isMounted) setIsLoading(false);
-      });
+    fetchRecentEvents();
 
     return () => {
       isMounted = false;
@@ -83,6 +101,30 @@ export default function LatestEventsSection({
                 <div className="mt-4 h-10 w-full rounded-full bg-surface-secondary" />
               </div>
             ))}
+          </div>
+        ) : error ? (
+          /* Error State */
+          <div className="rounded-3xl border border-dashed border-border bg-surface px-5 py-16 text-center sm:py-20">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-red-500/10 text-3xl text-red-500">
+              ⚠️
+            </div>
+
+            <h3 className="mt-6 text-xl font-bold text-foreground">
+              Failed to Load Events
+            </h3>
+
+            <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted">
+              {error.message}
+            </p>
+
+            <button
+              type="button"
+              onClick={handleRetry}
+              className="mt-6 inline-flex items-center justify-center gap-2 rounded-full bg-button-primary px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-button-primary-hover hover:text-white hover:shadow-md"
+            >
+              Retry
+              <span aria-hidden="true">→</span>
+            </button>
           </div>
         ) : events.length > 0 ? (
           /* Dynamic Event Cards in 2/3 Column Grid */

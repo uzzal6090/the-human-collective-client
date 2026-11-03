@@ -1,9 +1,17 @@
-export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  process.env.NEXT_PUBLIC_BETTER_AUTH_URL ||
-  (process.env.NODE_ENV === "production"
-    ? "https://the-human-collective-server.vercel.app"
-    : "http://localhost:5000");
+const isProduction = process.env.NODE_ENV === "production";
+const productionServerUrl = "https://the-human-collective-server.vercel.app";
+
+export const API_BASE_URL = (() => {
+  const configured = process.env.NEXT_PUBLIC_API_URL;
+  if (isProduction) {
+    // Never use localhost in production; fall back to the production server.
+    if (!configured || configured.includes("localhost")) {
+      return productionServerUrl;
+    }
+    return configured;
+  }
+  return configured || "http://localhost:5000";
+})();
 
 export interface EventItem {
   _id: string;
@@ -17,6 +25,17 @@ export interface EventItem {
   creatorName: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface FetchEventsError {
+  type: "network" | "http";
+  message: string;
+  status?: number;
+}
+
+export interface FetchEventsResult {
+  data: EventItem[] | null;
+  error: FetchEventsError | null;
 }
 
 export interface JoinedEventItem {
@@ -43,22 +62,40 @@ export interface CreateEventInput {
 }
 
 // 1. Fetch 6 Recent Upcoming Events (for Home Page)
-export async function getRecentEvents(): Promise<EventItem[]> {
+export async function getRecentEvents(): Promise<FetchEventsResult> {
   try {
     const res = await fetch(`${API_BASE_URL}/api/events/recent`, {
       cache: "no-store",
     });
-    if (!res.ok) return [];
+    if (!res.ok) {
+      return {
+        data: null,
+        error: {
+          type: "http",
+          message: `Failed to fetch recent events (HTTP ${res.status})`,
+          status: res.status,
+        },
+      };
+    }
     const data = await res.json();
-    return data.data || [];
+    return { data: data.data || [], error: null };
   } catch (err) {
     console.error("Error fetching recent events:", err);
-    return [];
+    return {
+      data: null,
+      error: {
+        type: "network",
+        message: "Network error fetching recent events. Please check your connection.",
+      },
+    };
   }
 }
 
 // 2. Fetch All Upcoming Events (with optional search and category filter)
-export async function getAllEvents(search?: string, category?: string): Promise<EventItem[]> {
+export async function getAllEvents(
+  search?: string,
+  category?: string
+): Promise<FetchEventsResult> {
   try {
     const params = new URLSearchParams();
     if (search && search.trim() !== "") params.append("search", search.trim());
@@ -68,12 +105,27 @@ export async function getAllEvents(search?: string, category?: string): Promise<
     const res = await fetch(url, {
       cache: "no-store",
     });
-    if (!res.ok) return [];
+    if (!res.ok) {
+      return {
+        data: null,
+        error: {
+          type: "http",
+          message: `Failed to fetch upcoming events (HTTP ${res.status})`,
+          status: res.status,
+        },
+      };
+    }
     const data = await res.json();
-    return data.data || [];
+    return { data: data.data || [], error: null };
   } catch (err) {
     console.error("Error fetching upcoming events:", err);
-    return [];
+    return {
+      data: null,
+      error: {
+        type: "network",
+        message: "Network error fetching upcoming events. Please check your connection.",
+      },
+    };
   }
 }
 
