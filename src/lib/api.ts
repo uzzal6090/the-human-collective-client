@@ -158,15 +158,70 @@ export function getAuthHeaders(custom?: Record<string, string>): Record<string, 
   return headers;
 }
 
+// Token refresh state for 401 retry logic.
+// Set by AuthProvider via setTokenRefresher(fetchJwt) on mount.
+let tokenRefresher: (() => Promise<void>) | null = null;
+let refreshInProgress: Promise<void> | null = null;
+
+/**
+ * Registers a token refresh callback (called by AuthProvider on mount).
+ * Used by fetchWithAuth to refresh the JWT on 401 responses.
+ */
+export function setTokenRefresher(cb: () => Promise<void>) {
+  tokenRefresher = cb;
+}
+
+/**
+ * Ensures a fresh JWT by calling the registered refresher once.
+ * Deduplicates concurrent calls so simultaneous 401s trigger only one refresh.
+ */
+async function ensureFreshToken(): Promise<void> {
+  if (!tokenRefresher) return;
+  if (refreshInProgress) return refreshInProgress;
+  refreshInProgress = tokenRefresher().finally(() => {
+    refreshInProgress = null;
+  });
+  return refreshInProgress;
+}
+
+/**
+ * Fetch wrapper that attaches Bearer token and handles one-time 401 refresh + retry.
+ * - Does NOT retry 403 responses (ownership/authorization failure, not token expiry).
+ * - Retries a 401 at most once (prevents infinite retry loops).
+ * - Prevents duplicate simultaneous token refresh requests.
+ * - Falls back to the original response when no refresher is registered.
+ */
+export async function fetchWithAuth(
+  input: RequestInfo | URL,
+  init: RequestInit = {}
+): Promise<Response> {
+  const headers = getAuthHeaders(init.headers as Record<string, string> | undefined);
+  let res = await fetch(input, {
+    ...init,
+    headers,
+    credentials: "include",
+  });
+
+  // One-time 401 refresh + retry. Skip 403 (not a token issue).
+  if (res.status === 401 && tokenRefresher) {
+    await ensureFreshToken();
+    const retryHeaders = getAuthHeaders(init.headers as Record<string, string> | undefined);
+    res = await fetch(input, {
+      ...init,
+      headers: retryHeaders,
+      credentials: "include",
+    });
+  }
+
+  return res;
+}
+
 // 4. Create Event (Protected)
 export async function createEventApi(eventData: CreateEventInput): Promise<{ success: boolean; data?: EventItem; message?: string }> {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/events`, {
+    const res = await fetchWithAuth(`${API_BASE_URL}/api/events`, {
       method: "POST",
-      headers: getAuthHeaders({
-        "Content-Type": "application/json",
-      }),
-      credentials: "include",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(eventData),
     });
 
@@ -184,12 +239,9 @@ export async function createEventApi(eventData: CreateEventInput): Promise<{ suc
 // 5. Update Event (Protected)
 export async function updateEventApi(id: string, eventData: CreateEventInput): Promise<{ success: boolean; message?: string }> {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/events/${id}`, {
+    const res = await fetchWithAuth(`${API_BASE_URL}/api/events/${id}`, {
       method: "PUT",
-      headers: getAuthHeaders({
-        "Content-Type": "application/json",
-      }),
-      credentials: "include",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(eventData),
     });
 
@@ -207,10 +259,8 @@ export async function updateEventApi(id: string, eventData: CreateEventInput): P
 // 6. Delete Event (Protected)
 export async function deleteEventApi(id: string): Promise<{ success: boolean; message?: string }> {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/events/${id}`, {
+    const res = await fetchWithAuth(`${API_BASE_URL}/api/events/${id}`, {
       method: "DELETE",
-      headers: getAuthHeaders(),
-      credentials: "include",
     });
 
     const data = await res.json();
@@ -227,10 +277,8 @@ export async function deleteEventApi(id: string): Promise<{ success: boolean; me
 // 7. Join Event (Protected)
 export async function joinEventApi(id: string): Promise<{ success: boolean; message?: string }> {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/events/${id}/join`, {
+    const res = await fetchWithAuth(`${API_BASE_URL}/api/events/${id}/join`, {
       method: "POST",
-      headers: getAuthHeaders(),
-      credentials: "include",
     });
 
     const data = await res.json();
@@ -247,9 +295,7 @@ export async function joinEventApi(id: string): Promise<{ success: boolean; mess
 // 8. Fetch My Created Events (Protected)
 export async function getMyEventsApi(): Promise<EventItem[]> {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/events/user/my-events`, {
-      headers: getAuthHeaders(),
-      credentials: "include",
+    const res = await fetchWithAuth(`${API_BASE_URL}/api/events/user/my-events`, {
       cache: "no-store",
     });
     if (!res.ok) return [];
@@ -264,9 +310,7 @@ export async function getMyEventsApi(): Promise<EventItem[]> {
 // 9. Fetch My Joined Events (Protected, sorted by date)
 export async function getMyJoinedEventsApi(): Promise<JoinedEventItem[]> {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/events/user/joined-events`, {
-      headers: getAuthHeaders(),
-      credentials: "include",
+    const res = await fetchWithAuth(`${API_BASE_URL}/api/events/user/joined-events`, {
       cache: "no-store",
     });
     if (!res.ok) return [];
@@ -281,9 +325,7 @@ export async function getMyJoinedEventsApi(): Promise<JoinedEventItem[]> {
 // 10. Fetch User Profile
 export async function getUserProfileApi(): Promise<{ name: string; email: string; image?: string; createdAt?: string } | null> {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/user/profile`, {
-      headers: getAuthHeaders(),
-      credentials: "include",
+    const res = await fetchWithAuth(`${API_BASE_URL}/api/user/profile`, {
       cache: "no-store",
     });
     if (!res.ok) return null;
@@ -298,10 +340,9 @@ export async function getUserProfileApi(): Promise<{ name: string; email: string
 // 11. Update User Profile
 export async function updateUserProfileApi(payload: { name: string; image?: string }): Promise<{ success: boolean; message?: string }> {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/user/profile`, {
+    const res = await fetchWithAuth(`${API_BASE_URL}/api/user/profile`, {
       method: "PUT",
-      headers: getAuthHeaders({ "Content-Type": "application/json" }),
-      credentials: "include",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
     const data = await res.json();

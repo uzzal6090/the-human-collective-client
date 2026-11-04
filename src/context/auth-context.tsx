@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { authClient } from "@/src/lib/auth-client";
+import { setTokenRefresher } from "@/src/lib/api";
 
 export interface AuthUser {
   id: string;
@@ -103,6 +104,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsJwtReady(false);
     }
   };
+
+  // Register fetchJwt as the token refresher so api.ts can refresh the JWT on 401.
+  setTokenRefresher(fetchJwt);
 
   useEffect(() => {
     let cancelled = false;
